@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QRFlow - Premium Dynamic QR Code Platform</title>
+  
+  <!-- Serverless Redirect Processor (Intercepts scans instantly) -->
+  <script>
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const scanId = urlParams.get('scan');
+      if (scanId) {
+        const dbStr = localStorage.getItem('qr_flow_db');
+        if (dbStr) {
+          try {
+            const db = JSON.parse(dbStr);
+            const qrcode = db.qrcodes.find(q => q.id === scanId);
+            if (qrcode) {
+              // Detect client environment details
+              const ua = navigator.userAgent;
+              let device = 'Desktop';
+              if (/Mobi|Android|iPhone/i.test(ua)) {
+                device = 'Mobile';
+              } else if (/Tablet|iPad/i.test(ua)) {
+                device = 'Tablet';
+              }
+
+              let browser = 'Other';
+              if (ua.indexOf('Chrome') > -1) browser = 'Chrome';
+              else if (ua.indexOf('Safari') > -1 && ua.indexOf('Chrome') === -1) browser = 'Safari';
+              else if (ua.indexOf('Firefox') > -1) browser = 'Firefox';
+              else if (ua.indexOf('Edge') > -1) browser = 'Edge';
+
+              let os = 'Other';
+              if (ua.indexOf('Windows') > -1) os = 'Windows';
+              else if (ua.indexOf('Macintosh') > -1) os = 'macOS';
+              else if (ua.indexOf('Android') > -1) os = 'Android';
+              else if (ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1) os = 'iOS';
+              else if (ua.indexOf('Linux') > -1) os = 'Linux';
+
+              // Record Scan Log
+              const newScan = {
+                id: Math.random().toString(36).substring(2, 10),
+                qrcodeId: scanId,
+                timestamp: new Date().toISOString(),
+                ip: '127.0.0.1 (Web Scan)',
+                device,
+                browser,
+                os
+              };
+
+              db.scans.push(newScan);
+              localStorage.setItem('qr_flow_db', JSON.stringify(db));
+
+              // Perform redirect immediately
+              let targetDest = qrcode.destinationUrl;
+              if (targetDest && !/^https?:\/\//i.test(targetDest)) {
+                targetDest = 'https://' + targetDest;
+              }
+              window.location.replace(targetDest);
+            } else {
+              document.write('<div style="font-family:sans-serif; text-align:center; padding:50px; background-color:#0f172a; color:#f8fafc;"><h2>Error 404: Link Invalid</h2><p>This dynamic QR code link is expired, deleted, or invalid.</p></div>');
+            }
+          } catch (e) {
+            console.error('Redirection error:', e);
+          }
+        }
+      }
+    })();
+  </script>
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Client-side QRCode Styling Library (Premium shapes, colors, logos) -->
+  <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+  
+  <!-- Offline Backup QRCode Generator (Zero dependency fallback) -->
+  <script src="qrcode.min.js"></script>
+  
+  <!-- Local Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon"><i class="fa-solid fa-qrcode"></i></div>
+      <div class="logo-text">QRFlow</div>
+    </div>
+    
+    <nav class="nav-links">
+      <button class="tab-btn active" data-tab="dashboard-view">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </button>
+      <button class="tab-btn" data-tab="analytics-view">
+        <i class="fa-solid fa-chart-line"></i> Analytics
+      </button>
+      <button class="tab-btn" data-tab="simulator-view">
+        <i class="fa-solid fa-laptop-code"></i> Scan Simulator
+      </button>
+      <a href="/scanner.html" class="tab-btn" style="display: flex; align-items: center; gap: 8px; text-decoration: none;">
+        <i class="fa-solid fa-camera"></i> Live Scanner
+      </a>
+    </nav>
+  </header>
+
+  <!-- Main Container -->
+  <div class="container">
+  
+    <!-- Left Sidebar: Creator Panel -->
+    <aside class="sidebar">
+      <div class="card">
+        <h3 class="card-title">
+          <i class="fa-solid fa-magic-wand-sparkles" style="color: var(--primary);"></i>
+          Create Dynamic QR
+        </h3>
+        
+        <form id="qr-create-form">
+          <div class="form-group">
+            <label for="qr-title">QR Code Name</label>
+            <input type="text" id="qr-title" class="form-control" placeholder="e.g. Summer Offer Campaign" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="qr-url">Destination URL</label>
+            <input type="url" id="qr-url" class="form-control" placeholder="https://example.com/promo" required>
+          </div>
+          
+          <div class="form-group">
+            <label>Color Customization</label>
+            <div class="color-pickers">
+              <div class="color-input-wrapper">
+                <input type="color" id="qr-color-dark" value="#0f172a">
+                <span>Foreground</span>
+              </div>
+              <div class="color-input-wrapper">
+                <input type="color" id="qr-color-light" value="#ffffff">
+                <span>Background</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label for="qr-dots-type">Dot Shape</label>
+              <select id="qr-dots-type" class="form-control">
+                <option value="square" selected>Square</option>
+                <option value="rounded">Rounded</option>
+                <option value="dots">Dots</option>
+                <option value="classy">Classy</option>
+                <option value="classy-rounded">Classy Rounded</option>
+                <option value="extra-rounded">Extra Rounded</option>
+              </select>
+            </div>
+            <div>
+              <label for="qr-corners-type">Corner Shape</label>
+              <select id="qr-corners-type" class="form-control">
+                <option value="square" selected>Square</option>
+                <option value="dot">Dot</option>
+                <option value="extra-rounded">Rounded</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="qr-logo">Center Logo Image (Optional)</label>
+            <input type="file" id="qr-logo" class="form-control" accept="image/*">
+          </div>
+          
+          <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label for="qr-margin">Margin</label>
+              <select id="qr-margin" class="form-control">
+                <option value="1">Small (1)</option>
+                <option value="2">Medium (2)</option>
+                <option value="4" selected>Large (4)</option>
+              </select>
+            </div>
+            <div>
+              <label for="qr-ecc">Precision (ECC)</label>
+              <select id="qr-ecc" class="form-control">
+                <option value="L">Low (7%)</option>
+                <option value="M" selected>Medium (15%)</option>
+                <option value="Q">Quartile (25%)</option>
+                <option value="H">High (30%)</option>
+              </select>
+            </div>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+            <i class="fa-solid fa-circle-plus"></i> Generate Dynamic QR
+          </button>
+        </form>
+        
+        <div class="qr-preview-box" id="qr-live-preview-box" style="display:none;">
+          <img id="qr-live-preview-img" src="" alt="QR Preview">
+          <p>Live Generated Preview</p>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Right Main Panel: Views -->
+    <main>
+      
+      <!-- Tab 1: Dashboard View -->
+      <section id="dashboard-view" class="tab-content active">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon primary"><i class="fa-solid fa-qrcode"></i></div>
+            <div class="kpi-info">
+              <h4>Total QR Codes</h4>
+              <p id="kpi-total-qrs">0</p>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon secondary"><i class="fa-solid fa-bolt"></i></div>
+            <div class="kpi-info">
+              <h4>Total Scans</h4>
+              <p id="kpi-total-scans">0</p>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon success"><i class="fa-solid fa-mobile-screen-button"></i></div>
+            <div class="kpi-info">
+              <h4>Most Active QR</h4>
+              <p id="kpi-active-qr" style="font-size: 1.1rem; line-height: 1.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">None</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin-bottom: 20px;">My Dynamic QR Codes</h3>
+        
+        <!-- Empty State -->
+        <div class="empty-state" id="dashboard-empty-state">
+          <div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div>
+          <h3>No QR Codes yet</h3>
+          <p>Use the generator panel on the left to create your first dynamic QR code!</p>
+        </div>
+        
+        <!-- QR Code Cards Grid -->
+        <div class="qr-list-grid" id="qr-list-container">
+          <!-- Dynamic items injected here by app.js -->
+        </div>
+      </section>
+      
+      <!-- Tab 2: Detailed Analytics View -->
+      <section id="analytics-view" class="tab-content">
+        <div class="card" style="margin-bottom: 24px;">
+          <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 15px;">
+            <label for="analytics-qr-select" style="margin-bottom: 0; white-space: nowrap;">Select QR Code:</label>
+            <select id="analytics-qr-select" class="form-control" style="max-width: 300px;">
+              <!-- Option tags injected by app.js -->
+            </select>
+            <button id="refresh-analytics-btn" class="btn btn-secondary btn-sm" style="width: auto;">
+              <i class="fa-solid fa-arrows-rotate"></i> Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty State for Analytics -->
+        <div class="empty-state" id="analytics-empty-state">
+          <div class="empty-state-icon"><i class="fa-solid fa-chart-pie"></i></div>
+          <h3>No analytics data available</h3>
+          <p>Please select a QR code or trigger some scans using the Scan Simulator to see reports.</p>
+        </div>
+
+        <div class="analytics-wrapper" id="analytics-dashboard-content" style="display: none;">
+          <!-- Charts Section -->
+          <div class="chart-grid">
+            <div class="chart-card">
+              <h4>Scans Over Time</h4>
+              <div class="chart-container">
+                <canvas id="scans-timeline-chart"></canvas>
+              </div>
+            </div>
+            
+            <div class="chart-card">
+              <h4>Devices breakdown</h4>
+              <div class="chart-container">
+                <canvas id="devices-pie-chart"></canvas>
+              </div>
+            </div>
+          </div>
+          
+          <div class="chart-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="chart-card">
+              <h4>Top Browsers</h4>
+              <div class="chart-container">
+                <canvas id="browsers-bar-chart"></canvas>
+              </div>
+            </div>
+            
+            <div class="chart-card">
+              <h4>Top Operating Systems</h4>
+              <div class="chart-container">
+                <canvas id="os-bar-chart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Logs Section -->
+          <div class="table-card">
+            <div class="table-header">
+              <h3>Scan Logs (Recent scans first)</h3>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>IP Address</th>
+                    <th>Device</th>
+                    <th>OS</th>
+                    <th>Browser</th>
+                  </tr>
+                </thead>
+                <tbody id="scan-logs-tbody">
+                  <!-- Rows injected here by app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Tab 3: Scan Simulator View -->
+      <section id="simulator-view" class="tab-content">
+        <!-- Simulator Main Layout -->
+        <div class="simulator-layout">
+          
+          <!-- Control Panel -->
+          <div class="card" style="margin-bottom: 0;">
+            <h3 class="card-title">
+              <i class="fa-solid fa-gamepad" style="color: var(--secondary);"></i>
+              Scan Simulator Settings
+            </h3>
+            
+            <div class="form-group">
+              <label for="sim-qr-select">QR Code to Scan</label>
+              <select id="sim-qr-select" class="form-control">
+                <!-- Option tags injected by app.js -->
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="sim-device">Device Type</label>
+              <select id="sim-device" class="form-control">
+                <option value="Mobile">Mobile Phone</option>
+                <option value="Tablet">Tablet</option>
+                <option value="Desktop">Desktop PC</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="sim-os">Operating System</label>
+              <select id="sim-os" class="form-control">
+                <option value="iOS">iOS</option>
+                <option value="Android">Android</option>
+                <option value="Windows">Windows</option>
+                <option value="macOS">macOS</option>
+                <option value="Linux">Linux</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="sim-browser">Web Browser</label>
+              <select id="sim-browser" class="form-control">
+                <option value="Safari">Safari</option>
+                <option value="Chrome">Chrome</option>
+                <option value="Firefox">Firefox</option>
+                <option value="Edge">Edge</option>
+                <option value="Opera">Opera</option>
+              </select>
+            </div>
+            
+            <button id="sim-trigger-btn" class="btn btn-primary" style="background: linear-gradient(135deg, var(--secondary), var(--primary));">
+              <i class="fa-solid fa-barcode"></i> Simulate Scan (Local)
+            </button>
+            
+            <button id="sim-redirect-btn" class="btn btn-secondary" style="margin-top: 12px;">
+              <i class="fa-solid fa-up-right-from-square"></i> Open Redirect Link in New Tab
+            </button>
+          </div>
+          
+          <!-- Virtual Phone UI -->
+          <div class="sim-phone-frame">
+            <div class="sim-phone-header">
+              <i class="fa-solid fa-wifi"></i> &nbsp; Simulated Scan Terminal
+            </div>
+            <div class="sim-phone-screen">
+              <div id="sim-state-waiting" style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                <div class="scanner-overlay">
+                  <div class="scanner-line"></div>
+                  <div style="font-size: 5rem; color: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; height: 100%;">
+                    <i class="fa-solid fa-qrcode"></i>
+                  </div>
+                </div>
+                <h3>Camera Ready</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 250px;">
+                  Configure scan parameters on the left and click <strong>Simulate Scan</strong> to test the redirect trigger.
+                </p>
+              </div>
+              
+              <div id="sim-state-scanning" style="display: none; flex-direction: column; align-items: center; gap: 15px;">
+                <div class="scanner-overlay" style="border-color: var(--success); box-shadow: 0 0 20px var(--success-glow);">
+                  <div style="font-size: 5rem; color: var(--success); display: flex; align-items: center; justify-content: center; height: 100%;">
+                    <i class="fa-solid fa-circle-check"></i>
+                  </div>
+                </div>
+                <h3 style="color: var(--success);">Scan Successful!</h3>
+                <p id="sim-redirect-msg" style="color: var(--text-muted); font-size: 0.9rem; max-width: 250px;">
+                  Redirecting to target...
+                </p>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+      
+    </main>
+  </div>
+
+  <!-- Edit Target URL Modal -->
+  <div class="modal" id="edit-url-modal">
+    <div class="modal-content">
+      <button class="modal-close" id="close-modal-btn">&times;</button>
+      <h3 style="margin-bottom: 20px;">Edit Target URL</h3>
+      <form id="edit-qr-form">
+        <input type="hidden" id="edit-qr-id">
+        <div class="form-group">
+          <label>QR Code Title</label>
+          <input type="text" id="edit-qr-title" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Target Redirect URL</label>
+          <input type="url" id="edit-qr-url" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Redirect Link</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification element -->
+  <div class="toast" id="toast-notification">Dynamic QR successfully saved!</div>
+
+  <!-- Local Logic Script -->
+  <script src="app.js"></script>
+</body>
+</html>

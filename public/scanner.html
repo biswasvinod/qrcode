@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QRFlow Live Scanner - Webcam QR Reader</title>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- html5-qrcode Library -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    
+    :root {
+      --bg-main: #0b0f19;
+      --bg-card: #151d30;
+      --primary: #6366f1;
+      --secondary: #ec4899;
+      --success: #10b981;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --font-sans: 'Outfit', sans-serif;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .scanner-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 30px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .scanner-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+    
+    h2 {
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    
+    p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+    
+    /* html5-qrcode override styles */
+    #reader {
+      border: 2px dashed rgba(255, 255, 255, 0.15) !important;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #090d16;
+    }
+    
+    #reader__scan_region {
+      background: #000;
+    }
+    
+    button {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+    }
+    
+    select {
+      background: #090d16;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-family: inherit;
+    }
+    
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-top: 24px;
+      transition: color 0.3s ease;
+    }
+    
+    .back-btn:hover {
+      color: var(--primary);
+    }
+    
+    /* Scan Success Result Overlay */
+    .success-overlay {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-card);
+      z-index: 10;
+      padding: 30px;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .success-icon {
+      font-size: 4rem;
+      color: var(--success);
+      margin-bottom: 20px;
+      animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    @keyframes scaleUp {
+      from { transform: scale(0.5); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .redirect-link {
+      background: rgba(9, 13, 22, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 20px 0;
+      width: 100%;
+      font-family: monospace;
+      word-break: break-all;
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="scanner-container">
+    <h2><i class="fa-solid fa-camera"></i> Live QR Scanner</h2>
+    <p>Point your webcam or phone camera at a QR Code to trigger redirections and log scans.</p>
+    
+    <!-- Reader target div -->
+    <div id="reader" style="width: 100%"></div>
+    
+    <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    
+    <!-- Success Modal inside container -->
+    <div class="success-overlay" id="success-overlay">
+      <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
+      <h3>QR Scan Registered!</h3>
+      <p style="margin-bottom: 10px;">Connecting to redirect target URL...</p>
+      
+      <div class="redirect-link" id="redirect-url-display">https://example.com</div>
+      
+      <button id="reset-scanner-btn">Scan Another QR</button>
+    </div>
+  </div>
+
+  <script>
+    let html5QrcodeScanner = null;
+    const successOverlay = document.getElementById('success-overlay');
+    const redirectUrlDisplay = document.getElementById('redirect-url-display');
+    const resetScannerBtn = document.getElementById('reset-scanner-btn');
+
+    function onScanSuccess(decodedText, decodedResult) {
+      console.log(`Code matched = ${decodedText}`, decodedResult);
+      
+      // Stop scanner
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(err => console.error("Failed to clear scanner: ", err));
+      }
+      
+      // Display result
+      redirectUrlDisplay.textContent = decodedText;
+      successOverlay.style.display = 'flex';
+      
+      // If it is our dynamic QR code redirect link, we navigate to it after a short delay
+      setTimeout(() => {
+        let targetUrl = decodedText;
+        if (targetUrl && !/^https?:\/\//i.test(targetUrl) && !targetUrl.startsWith('file:')) {
+          targetUrl = 'https://' + targetUrl;
+        }
+        window.location.href = targetUrl;
+      }, 2500);
+    }
+
+    function onScanFailure(error) {
+      // quiet debug, too many logs if printed
+    }
+
+    function startScanner() {
+      successOverlay.style.display = 'none';
+      
+      html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader", 
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
+        /* verbose= */ false
+      );
+      
+      html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+
+    // Initialize scanner
+    startScanner();
+
+    // Reset scanner click
+    resetScannerBtn.addEventListener('click', startScanner);
+  </script>
+</body>
+</html>
